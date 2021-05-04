@@ -1,14 +1,18 @@
-from flask import Flask
+from fastapi import FastAPI
 
-from hex.configuration import configure_inject, configure_application
-from hex.web.post_blueprint import create_post_blueprint
+from hex.configuration import configure_inject
+from hex.web.post_router import create_post_routers
 
 
-def create_application() -> Flask:
-    application = Flask(__name__)
-    configure_application(application)
-    configure_inject(application)
+def create_application() -> FastAPI:
+    application = FastAPI(title=__name__)
+    configure_inject()
 
-    application.register_blueprint(create_post_blueprint(), url_prefix='/api')
+    application.include_router(
+        create_post_routers(),
+        prefix="/posts",
+        tags=["Post"],
+        responses={404: {"description": "Not found"}},
+    )
 
     return application

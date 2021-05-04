@@ -3,25 +3,25 @@ from unittest.mock import Mock
 
 import inject
 import pytest
-from flask import Flask
-from flask.testing import FlaskClient
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from pytest_mock import MockFixture
 
 from hex.domain.actions.get_post import GetPost
 from hex.domain.actions.search_posts import SearchPosts
 from hex.domain.post import Post
-from hex.web.post_blueprint import create_post_blueprint
+from hex.web.post_router import create_post_routers
 from tests.utils.dates import datetime_to_rfc822_string
 
 
 @pytest.fixture
 def get_post(mocker: MockFixture) -> Mock:
-    return mocker.patch('hex.web.post_blueprint.GetPost')
+    return mocker.patch('hex.web.post_router.GetPost')
 
 
 @pytest.fixture
 def search_posts(mocker: MockFixture) -> Mock:
-    return mocker.patch('hex.web.post_blueprint.SearchPosts')
+    return mocker.patch('hex.web.post_router.SearchPosts')
 
 
 @pytest.fixture
@@ -32,11 +32,15 @@ def injector(get_post: Mock, search_posts: Mock) -> None:
 
 
 @pytest.fixture
-def client(injector: None) -> FlaskClient:
-    application = Flask(__name__)
-    application.register_blueprint(create_post_blueprint())
-    application.testing = True
-    return application.test_client()
+def client(injector: None) -> TestClient:
+    application = FastAPI(title=__name__)
+    application.include_router(
+        create_post_routers(),
+        prefix="/posts",
+        tags=["Post"],
+        responses={404: {"description": "Not found"}},
+    )
+    return TestClient(application)
 
 
 @pytest.fixture
@@ -50,14 +54,14 @@ def post() -> Post:
 
 
 class TestPostBlueprint:
-    def test_list_searches_posts(self, search_posts: Mock, client: FlaskClient,
+    def test_list_searches_posts(self, search_posts: Mock, client: TestClient,
                                  post: Post) -> None:
         search_posts.execute.return_value = [post], 100
 
         response = client.get('/posts')
 
-        search_posts.execute.assert_called_once_with(start_after=None, end_before=None)
-        assert response.json == {
+        search_posts.execute.assert_called_once_with(start_after=0, end_before=999999)
+        assert response.json() == {
             'results': [{
                 'id': 1,
                 'authorName': 'Alex',
@@ -69,7 +73,7 @@ class TestPostBlueprint:
             'count': 100
         }
 
-    def test_post_list_parses_query_string(self, search_posts: Mock, client: FlaskClient,
+    def test_post_list_parses_query_string(self, search_posts: Mock, client: TestClient,
                                            post: Post) -> None:
         search_posts.execute.return_value = [post], 100
 
@@ -77,13 +81,13 @@ class TestPostBlueprint:
 
         search_posts.execute.assert_called_once_with(start_after=10, end_before=100)
 
-    def test_detail_gets_post(self, get_post: Mock, client: FlaskClient, post: Post) -> None:
+    def test_detail_gets_post(self, get_post: Mock, client: TestClient, post: Post) -> None:
         get_post.execute.return_value = post
 
-        response = client.get('/posts/20')
+        response = client.get('/posts/1')
 
-        get_post.execute.assert_called_once_with(post_id=20)
-        assert response.json == {
+        get_post.execute.assert_called_once_with(post_id=1)
+        assert response.json() == {
             'id': 1,
             'authorName': 'Alex',
             'title': 'Test Post',

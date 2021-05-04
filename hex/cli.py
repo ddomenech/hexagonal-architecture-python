@@ -21,7 +21,7 @@ def cli() -> None:
 
 @cli.command(help='Run the web server')
 def server() -> int:
-    return subprocess.call(['flask', 'run'])
+    return subprocess.call(['uvicorn', 'hex.application:create_application'])
 
 
 @cli.group(help="Manage the database")
@@ -73,3 +73,7 @@ def tests() -> int:
 def types() -> int:
     click.echo('Running `mypy`...')
     return subprocess.call('mypy')
+
+
+if __name__ == "__main__":
+    cli()
