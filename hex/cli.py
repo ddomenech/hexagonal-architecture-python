@@ -5,7 +5,8 @@ import click
 from dotenv import load_dotenv
 
 
-def validate_env(_context: click.Context, _parameter: Union[click.Option, click.Parameter],
+def validate_env(_context: click.Context,
+                 _parameter: Union[click.Option, click.Parameter],
                  env: str) -> str:
     values = ('dev', 'test')
     if env not in values:
@@ -50,6 +51,21 @@ def migrate(env: str) -> int:
     load_dotenv(dotenv_file)
 
     return subprocess.call(['alembic', 'upgrade', 'head'])
+
+
+@db.command(help="Run the database make migrations")
+@click.argument('env', envvar='ENV', default='dev', callback=validate_env)
+def makemigrations(env: str) -> int:
+    click.echo(f'Make migration migrations for `{env}` environment...')
+
+    dotenv_file = '.env'
+    if env != 'dev':
+        dotenv_file = f'.env.{env}'
+
+    load_dotenv(dotenv_file)
+
+    return subprocess.call(['alembic', 'revision', '--autogenerate'])
+
 
 
 @cli.group(help='Run the code quality tools')
